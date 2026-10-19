@@ -9,7 +9,7 @@ inputs:
     description: 'Age secret key (AGE-SECRET-KEY-1...)'
     required: true
   version:
-    description: 'murk version to install (e.g. "0.2.1" or "latest")'
+    description: 'murk version to install, 0.10.2 or newer (e.g. "0.11.0" or "latest")'
     required: false
     default: 'latest'
   vault:
@@ -64,11 +64,22 @@ runs:
         # Resolve version.
         VERSION="${{ inputs.version }}"
         if [ "$VERSION" = "latest" ]; then
-          VERSION=$(gh release view --repo interrupted-inc/murk --json tagName --jq '.tagName')
+          VERSION=$(gh release view --repo interrupted-sh/murk --json tagName --jq '.tagName')
           VERSION="${VERSION#v}"
           echo "::warning::murk-action resolved to v${VERSION} — pin 'version: ${VERSION}' for reproducible builds"
         fi
         VERSION="${VERSION#v}"
+
+        # Only releases from v0.10.2 on carry build-provenance attestations.
+        if ! [[ "$VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
+          echo "::error::Invalid murk version '${VERSION}' — expected MAJOR.MINOR.PATCH"
+          exit 1
+        fi
+        MAJOR=$((10#${BASH_REMATCH[1]})) MINOR=$((10#${BASH_REMATCH[2]})) PATCH=$((10#${BASH_REMATCH[3]}))
+        if (( MAJOR == 0 && (MINOR < 10 || (MINOR == 10 && PATCH < 2)) )); then
+          echo "::error::murk-action requires murk 0.10.2 or newer because older releases are not signed (requested v${VERSION})"
+          exit 1
+        fi
 
         # Download and extract.
         ARCHIVE="murk-v${VERSION}-${TARGET}.tar.gz"
@@ -76,7 +87,7 @@ runs:
         mkdir -p "$INSTALL_DIR"
 
         gh release download "v${VERSION}" \
-          --repo interrupted-inc/murk \
+          --repo interrupted-sh/murk \
           --pattern "$ARCHIVE" \
           --pattern "SHA256SUMS" \
           --dir "$RUNNER_TEMP"
@@ -93,9 +104,16 @@ runs:
           exit 1
         fi
 
-        # Verify build provenance attestation (best-effort for older releases).
-        if ! gh attestation verify "${RUNNER_TEMP}/${ARCHIVE}" --repo interrupted-inc/murk 2>/dev/null; then
-          echo "::warning::No attestation found for $ARCHIVE — older releases may lack provenance"
+        # Verify build provenance attestation; refuse unsigned or tampered binaries.
+        # Releases built before the org rename (0.10.2–0.11.0) are signed as
+        # interrupted-inc/murk: fetch their attestation from the current repo, then
+        # verify the bundle against the old signing identity.
+        BUNDLE="${RUNNER_TEMP}/sha256:${ACTUAL}.jsonl"
+        if ! gh attestation verify "${RUNNER_TEMP}/${ARCHIVE}" --repo interrupted-sh/murk 2>/dev/null \
+          && ! { (cd "$RUNNER_TEMP" && gh attestation download "$ARCHIVE" --repo interrupted-sh/murk >/dev/null 2>&1) \
+            && gh attestation verify "${RUNNER_TEMP}/${ARCHIVE}" --bundle "$BUNDLE" --repo interrupted-inc/murk 2>/dev/null; }; then
+          echo "::error::No valid build-provenance attestation for $ARCHIVE — refusing to install"
+          exit 1
         fi
 
         tar xzf "${RUNNER_TEMP}/${ARCHIVE}" -C "$INSTALL_DIR"
