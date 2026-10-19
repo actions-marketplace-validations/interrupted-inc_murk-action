@@ -64,7 +64,7 @@ runs:
         # Resolve version.
         VERSION="${{ inputs.version }}"
         if [ "$VERSION" = "latest" ]; then
-          VERSION=$(gh release view --repo interrupted-inc/murk --json tagName --jq '.tagName')
+          VERSION=$(gh release view --repo interrupted-sh/murk --json tagName --jq '.tagName')
           VERSION="${VERSION#v}"
           echo "::warning::murk-action resolved to v${VERSION} — pin 'version: ${VERSION}' for reproducible builds"
         fi
@@ -76,7 +76,7 @@ runs:
         mkdir -p "$INSTALL_DIR"
 
         gh release download "v${VERSION}" \
-          --repo interrupted-inc/murk \
+          --repo interrupted-sh/murk \
           --pattern "$ARCHIVE" \
           --pattern "SHA256SUMS" \
           --dir "$RUNNER_TEMP"
@@ -94,7 +94,13 @@ runs:
         fi
 
         # Verify build provenance attestation (best-effort for older releases).
-        if ! gh attestation verify "${RUNNER_TEMP}/${ARCHIVE}" --repo interrupted-inc/murk 2>/dev/null; then
+        # Releases built before the org rename are signed as interrupted-inc/murk:
+        # fetch their attestation from the current repo, then verify the bundle
+        # against the old signing identity.
+        BUNDLE="${RUNNER_TEMP}/sha256:${ACTUAL}.jsonl"
+        if ! gh attestation verify "${RUNNER_TEMP}/${ARCHIVE}" --repo interrupted-sh/murk 2>/dev/null \
+          && ! { (cd "$RUNNER_TEMP" && gh attestation download "$ARCHIVE" --repo interrupted-sh/murk >/dev/null 2>&1) \
+            && gh attestation verify "${RUNNER_TEMP}/${ARCHIVE}" --bundle "$BUNDLE" --repo interrupted-inc/murk 2>/dev/null; }; then
           echo "::warning::No attestation found for $ARCHIVE — older releases may lack provenance"
         fi
 

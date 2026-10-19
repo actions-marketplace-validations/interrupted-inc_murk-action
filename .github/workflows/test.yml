@@ -38,7 +38,7 @@ jobs:
       - name: Create test vault
         run: |
           # Install murk to create the test vault.
-          VERSION=$(gh release view --repo interrupted-inc/murk --json tagName --jq '.tagName')
+          VERSION=$(gh release view --repo interrupted-sh/murk --json tagName --jq '.tagName')
           VERSION="${VERSION#v}"
 
           case "$RUNNER_OS" in
@@ -48,7 +48,7 @@ jobs:
 
           ARCHIVE="murk-v${VERSION}-${TARGET}.tar.gz"
           gh release download "v${VERSION}" \
-            --repo interrupted-inc/murk \
+            --repo interrupted-sh/murk \
             --pattern "$ARCHIVE" \
             --dir /tmp
 

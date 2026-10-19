@@ -2,16 +2,18 @@
 
 [![GitHub Marketplace](https://img.shields.io/badge/GitHub%20Marketplace-murk--action-2ea44f?logo=github&logoColor=white)](https://github.com/marketplace/actions/murk-action)
 
-Decrypt [murk](https://github.com/interrupted-inc/murk) secrets and inject them
+Decrypt [murk](https://github.com/interrupted-sh/murk) secrets and inject them
 into your GitHub Actions workflow.
 
 ## Usage
 
 ```yaml
-- uses: interrupted-inc/murk-action@v1
+- uses: interrupted-sh/murk-action@v1
   with:
     murk-key: ${{ secrets.MURK_KEY }}
 ```
+
+Workflows that still use `interrupted-inc/murk-action` must switch to `interrupted-sh/murk-action`, because GitHub does not redirect action references after an organization rename.
 
 All decrypted values are written to `$GITHUB_ENV` and masked in logs.
 Subsequent steps can use them as regular environment variables.
@@ -20,7 +22,7 @@ Subsequent steps can use them as regular environment variables.
 steps:
   - uses: actions/checkout@v4
 
-  - uses: interrupted-inc/murk-action@v1
+  - uses: interrupted-sh/murk-action@v1
     with:
       murk-key: ${{ secrets.MURK_KEY }}
 
@@ -42,7 +44,7 @@ steps:
 ### Pin a version
 
 ```yaml
-- uses: interrupted-inc/murk-action@v1
+- uses: interrupted-sh/murk-action@v1
   with:
     murk-key: ${{ secrets.MURK_KEY }}
     version: '0.2.1'
@@ -51,7 +53,7 @@ steps:
 ### Custom vault path
 
 ```yaml
-- uses: interrupted-inc/murk-action@v1
+- uses: interrupted-sh/murk-action@v1
   with:
     murk-key: ${{ secrets.MURK_KEY }}
     vault: 'prod.murk'
@@ -60,7 +62,7 @@ steps:
 ### Filter by tags
 
 ```yaml
-- uses: interrupted-inc/murk-action@v1
+- uses: interrupted-sh/murk-action@v1
   with:
     murk-key: ${{ secrets.MURK_KEY }}
     tags: 'deploy aws'
@@ -71,7 +73,7 @@ steps:
 If you prefer subprocess injection over `$GITHUB_ENV`:
 
 ```yaml
-- uses: interrupted-inc/murk-action@v1
+- uses: interrupted-sh/murk-action@v1
   with:
     murk-key: ${{ secrets.MURK_KEY }}
 
