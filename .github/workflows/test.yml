@@ -100,9 +100,29 @@ jobs:
         uses: ./
         with:
           murk-key: 'AGE-SECRET-KEY-1DUMMY'
-          version: '0.2.1'
+          version: '0.11.0'
           vault: 'nonexistent.murk'
         continue-on-error: true
 
       - name: Verify pinned version
-        run: murk --version | grep -q "0.2.1"
+        run: murk --version | grep -q "0.11.0"
+
+  test-unsigned-version:
+    name: Refuse unsigned version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Run with a release that predates signing
+        id: unsigned
+        uses: ./
+        with:
+          murk-key: 'AGE-SECRET-KEY-1DUMMY'
+          version: '0.10.1'
+          vault: 'nonexistent.murk'
+        continue-on-error: true
+
+      - name: Verify the action refused it
+        run: |
+          test "${{ steps.unsigned.outcome }}" = "failure" || { echo "FAIL: unsigned release was accepted"; exit 1; }
+          if command -v murk >/dev/null 2>&1; then echo "FAIL: murk was installed"; exit 1; fi

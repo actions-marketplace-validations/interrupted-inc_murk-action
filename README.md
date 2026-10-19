@@ -35,7 +35,7 @@ steps:
 | Input      | Required | Default  | Description                            |
 |------------|----------|----------|----------------------------------------|
 | `murk-key` | yes      |          | Age secret key (`AGE-SECRET-KEY-1...`) |
-| `version`  | no       | `latest` | murk version (e.g. `0.2.1`)           |
+| `version`  | no       | `latest` | murk version, 0.10.2 or newer (e.g. `0.11.0`) |
 | `vault`    | no       | `.murk`  | Path to vault file                     |
 | `tags`     | no       |          | Space-separated tags to filter secrets |
 
@@ -47,7 +47,7 @@ steps:
 - uses: interrupted-sh/murk-action@v1
   with:
     murk-key: ${{ secrets.MURK_KEY }}
-    version: '0.2.1'
+    version: '0.11.0'
 ```
 
 ### Custom vault path
@@ -84,7 +84,7 @@ If you prefer subprocess injection over `$GITHUB_ENV`:
 
 ## How it works
 
-1. Downloads the murk binary from GitHub Releases for the runner platform
+1. Downloads the murk binary from GitHub Releases for the runner platform and verifies its checksum and build-provenance signature
 2. Runs `murk export` to decrypt the vault
 3. Masks each secret value with `::add-mask::`
 4. Writes each key-value pair to `$GITHUB_ENV`
@@ -99,6 +99,7 @@ If you prefer subprocess injection over `$GITHUB_ENV`:
 - `murk-key` should always come from a GitHub Actions secret
 - All decrypted values are masked before being written anywhere
 - The murk binary is downloaded over HTTPS from GitHub Releases
+- The step fails if the binary's build-provenance signature is missing or invalid, so murk-action requires murk 0.10.2 or newer (older releases are not signed)
 - No secrets are written to disk
 
 ## License
