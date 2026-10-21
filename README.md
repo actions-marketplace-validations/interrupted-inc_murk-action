@@ -32,12 +32,59 @@ steps:
 
 ## Inputs
 
-| Input      | Required | Default  | Description                            |
-|------------|----------|----------|----------------------------------------|
-| `murk-key` | yes      |          | Age secret key (`AGE-SECRET-KEY-1...`) |
-| `version`  | no       | `latest` | murk version, 0.10.2 or newer (e.g. `0.11.0`) |
-| `vault`    | no       | `.murk`  | Path to vault file                     |
-| `tags`     | no       |          | Space-separated tags to filter secrets |
+| Input             | Required | Default  | Description                            |
+|-------------------|----------|----------|----------------------------------------|
+| `murk-key`        | yes      |          | Age secret key (`AGE-SECRET-KEY-1...`) |
+| `version`         | no       | `latest` | murk version, 0.10.2 or newer (e.g. `0.13.0`) |
+| `vault`           | no       | `.murk`  | Path to vault file                     |
+| `tags`            | no       |          | Space-separated tags to filter secrets |
+| `trusted-signers` | no       |          | Signers trusted to sign the vault, one per line or comma-separated. Required by murk 0.14 and later; see below |
+
+## murk 0.14 and later
+
+murk 0.14 loads a vault only if a signer that the machine trusts signed it.
+A CI runner is a new machine with no trust record, so you must tell murk which
+signers to trust. Supply the `trusted-signers` input:
+
+```yaml
+- uses: interrupted-sh/murk-action@v1
+  with:
+    murk-key: ${{ secrets.MURK_KEY }}
+    trusted-signers: ${{ vars.MURK_TRUSTED_SIGNERS }}
+```
+
+Store the entries in a repository variable, for example
+`MURK_TRUSTED_SIGNERS` (Settings → Secrets and variables → Actions →
+Variables). Use one line for each teammate whose writes to the vault must load
+in CI. To get an entry, each teammate runs this command in the repository:
+
+```sh
+murk trust --print-key
+```
+
+The command writes the entry to stdout and the signing-key fingerprint to
+stderr. An age key's entry has the form `age1…:<verifying key>`. An
+ssh-ed25519 key's entry is its public key line. A bare `age1…` recipient is
+not a valid entry. The entries contain only public keys, so you can use a
+variable for them and the action does not mask them.
+
+The action sets `MURK_TRUSTED_SIGNERS` only for the murk commands that it runs.
+Later steps that run murk themselves need the same value, as in the
+[murk exec example](#use-with-murk-exec). If `MURK_TRUSTED_SIGNERS` is already
+in the job's environment, the action uses it when the input is empty.
+
+Without `trusted-signers`, murk 0.14 does not load the vault and the step
+fails. The error tells you to set `trusted-signers`. The step also fails if no
+entry matches the vault's signer, or if an entry has the wrong verifying key.
+An unsigned vault always fails when you set trusted signers.
+
+murk 0.13 and earlier ignore `trusted-signers`, so you can add the input before
+you upgrade.
+
+**Upgrade note:** the whole team must upgrade to murk 0.14 together. murk 0.14
+writes vault format 3.0, which murk 0.13 cannot read. The default
+`version: latest` installs 0.14 after its release, so add `trusted-signers`
+before that, or pin `version: '0.13.0'` until your team upgrades.
 
 ## Examples
 
@@ -47,7 +94,7 @@ steps:
 - uses: interrupted-sh/murk-action@v1
   with:
     murk-key: ${{ secrets.MURK_KEY }}
-    version: '0.11.0'
+    version: '0.13.0'
 ```
 
 ### Custom vault path
@@ -80,12 +127,13 @@ If you prefer subprocess injection over `$GITHUB_ENV`:
 - run: murk exec --vault .murk -- ./deploy.sh
   env:
     MURK_KEY: ${{ secrets.MURK_KEY }}
+    MURK_TRUSTED_SIGNERS: ${{ vars.MURK_TRUSTED_SIGNERS }} # murk 0.14 and later
 ```
 
 ## How it works
 
 1. Downloads the murk binary from GitHub Releases for the runner platform and verifies its checksum and build-provenance signature
-2. Runs `murk export` to decrypt the vault
+2. Runs `murk export` to decrypt the vault, with `MURK_TRUSTED_SIGNERS` set from `trusted-signers` when given
 3. Masks each secret value with `::add-mask::`
 4. Writes each key-value pair to `$GITHUB_ENV`
 
