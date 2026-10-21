@@ -34,7 +34,7 @@ steps:
 
 | Input             | Required | Default  | Description                            |
 |-------------------|----------|----------|----------------------------------------|
-| `murk-key`        | yes      |          | Age secret key (`AGE-SECRET-KEY-1...`) |
+| `murk-key`        | yes      |          | Age secret key (`AGE-SECRET-KEY-1...`), or a whole grant key file; see [Agent grant keys](#agent-grant-keys) |
 | `version`         | no       | `latest` | murk version, 0.10.2 or newer (e.g. `0.13.0`) |
 | `vault`           | no       | `.murk`  | Path to vault file                     |
 | `tags`            | no       |          | Space-separated tags to filter secrets |
@@ -86,6 +86,42 @@ writes vault format 3.0, which murk 0.13 cannot read. The default
 `version: latest` installs 0.14 after its release, so add `trusted-signers`
 before that, or pin `version: '0.13.0'` until your team upgrades.
 
+### Agent grant keys
+
+You can give CI a grant key that reads only the secrets it needs, instead of
+a teammate's key. Mint it and write the key file to stdout:
+
+```sh
+murk agent grant --name ci --only DATABASE_URL --ttl 30d --out -
+```
+
+Paste the whole output into the secret that you supply as `murk-key`,
+including the comment lines:
+
+```
+# murk-trusted-signer: age1…:<verifying key>
+# murk-grant-id: ci
+# murk-grant-expires: 2026-11-20T12:00:00Z
+AGE-SECRET-KEY-1…
+```
+
+The action gives the key file to murk unchanged and masks the
+`AGE-SECRET-KEY-1` line. The comment lines contain only public data. The
+`# murk-trusted-signer:` lines name the signers that the grant trusts, so a
+grant key file does not need `trusted-signers`. murk refuses the grant after
+the earlier of the key file's expiry and the vault's grant record.
+
+A bare `AGE-SECRET-KEY-1` grant line still works, but then you must set
+`trusted-signers`, only the vault's record limits the grant, and murk shows a
+warning.
+
+`trusted-signers` adds signers to the signers in the key file. It cannot remove
+one. When you revoke a teammate, mint the grant again so that its key file no
+longer names them. Run the same `murk agent grant` command with `--renew`,
+replace the secret, and remove their entry from `trusted-signers`. Renew the
+grant the same way before it expires. To end CI's access, run
+`murk agent revoke ci`.
+
 ## Examples
 
 ### Pin a version
@@ -123,6 +159,7 @@ If you prefer subprocess injection over `$GITHUB_ENV`:
 - uses: interrupted-sh/murk-action@v1
   with:
     murk-key: ${{ secrets.MURK_KEY }}
+    trusted-signers: ${{ vars.MURK_TRUSTED_SIGNERS }} # murk 0.14 and later
 
 - run: murk exec --vault .murk -- ./deploy.sh
   env:
