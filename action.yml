@@ -6,7 +6,7 @@ branding:
 
 inputs:
   murk-key:
-    description: 'Age secret key (AGE-SECRET-KEY-1...)'
+    description: 'Age secret key (AGE-SECRET-KEY-1...), or a whole murk agent grant key file (its "# murk-..." comment lines and its AGE-SECRET-KEY-1... line), passed to murk unchanged'
     required: true
   version:
     description: 'murk version to install, 0.10.2 or newer (e.g. "0.13.0" or "latest"); "latest" installs murk 0.14 once released, which needs trusted-signers'
@@ -137,14 +137,35 @@ runs:
       run: |
         set -euo pipefail
 
-        # Validate key format.
-        if [[ ! "$MURK_KEY" =~ ^AGE-SECRET-KEY-1 ]]; then
+        # Validate the key: a bare age secret key line, or a whole grant key
+        # file whose "# murk-trusted-signer:", "# murk-grant-id:" and
+        # "# murk-grant-expires:" lines murk reads and enforces. MURK_KEY reaches
+        # murk unchanged. Never echo a line of it: only the secret line is
+        # masked, and a multi-line ::add-mask:: would print the lines after the
+        # first.
+        KEY_LINE=""
+        while IFS= read -r line || [ -n "$line" ]; do
+          line="${line%$'\r'}"
+          case "$line" in
+            '' | '#'*) ;;
+            AGE-SECRET-KEY-1*)
+              echo "::add-mask::${line}"
+              if [ -n "$KEY_LINE" ]; then
+                echo "::error::murk-key holds more than one AGE-SECRET-KEY-1... line"
+                exit 1
+              fi
+              KEY_LINE="$line"
+              ;;
+            *)
+              echo "::error::murk-key must be an age secret key (AGE-SECRET-KEY-1...) or a murk grant key file (# comment lines and one AGE-SECRET-KEY-1... line)"
+              exit 1
+              ;;
+          esac
+        done <<< "$MURK_KEY"
+        if [ -z "$KEY_LINE" ]; then
           echo "::error::murk-key does not look like an age secret key (expected AGE-SECRET-KEY-1...)"
           exit 1
         fi
-
-        # Mask the key itself as defense-in-depth.
-        echo "::add-mask::${MURK_KEY}"
 
         # Build --tag arguments.
         TAG_ARGS=""
@@ -174,6 +195,8 @@ runs:
             printf '::error::murk refused %s because its signer is not trusted on this runner. Set the trusted-signers input to the `murk trust --print-key` output of each teammate who signs the vault (murk 0.14 and later).\n' "$INPUT_VAULT"
           elif [ -n "${MURK_TRUSTED_SIGNERS:-}" ] && grep -qE 'not a trusted signer|signing key that is not theirs' "$ERR_FILE"; then
             printf '::error::murk refused %s because its signer does not match trusted-signers. Each entry must be the `murk trust --print-key` output of a teammate who signs the vault.\n' "$INPUT_VAULT"
+          elif grep -q 'grant key names no trusted signers' "$ERR_FILE"; then
+            printf '::error::murk-key is a grant key without its trusted signers. Paste the whole key file from `murk agent grant ... --out -` into murk-key, comment lines included, or set trusted-signers.\n'
           fi
           rm -f "$ERR_FILE"
           exit 1
