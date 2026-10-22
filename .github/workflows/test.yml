@@ -142,6 +142,7 @@ jobs:
       - name: Verify the action refused it
         run: |
           test "${{ steps.untrusted.outcome }}" = "failure" || { echo "FAIL: untrusted vault was loaded"; exit 1; }
+          test "${{ steps.untrusted.outputs.version }}" = "0.14.0" || { echo "FAIL: murk 0.14.0 was not installed, so the failure proves nothing"; exit 1; }
           test -z "${GREETING:-}" || { echo "FAIL: GREETING was exported"; exit 1; }
 
       - name: Run murk-action with trusted-signers
