@@ -94,13 +94,8 @@ jobs:
 
           echo "All assertions passed"
 
-  # Gated until murk 0.14.0 is released: no 0.14 build exists to install, so
-  # the job stays skipped unless the repository variable MURK_0_14_RELEASED is
-  # 'true'. Until then, run test/trusted-signers.sh locally with a murk 0.14
-  # build on PATH. Once 0.14.0 is released, remove the `if` below.
   test-trusted-signers:
     name: Trusted signers, murk 0.14 (${{ matrix.os }})
-    if: vars.MURK_0_14_RELEASED == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
