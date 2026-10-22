@@ -90,11 +90,14 @@ runs:
         INSTALL_DIR="${RUNNER_TEMP}/murk-bin"
         mkdir -p "$INSTALL_DIR"
 
+        # --clobber: an earlier run of this action in the same job left these
+        # files in RUNNER_TEMP; both are verified below either way.
         gh release download "v${VERSION}" \
           --repo interrupted-sh/murk \
           --pattern "$ARCHIVE" \
           --pattern "SHA256SUMS" \
-          --dir "$RUNNER_TEMP"
+          --dir "$RUNNER_TEMP" \
+          --clobber
 
         # Verify checksum (shasum for macOS portability).
         EXPECTED=$(grep -F "$ARCHIVE" "${RUNNER_TEMP}/SHA256SUMS" | cut -d' ' -f1)
