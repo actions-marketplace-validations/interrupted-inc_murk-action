@@ -11,6 +11,7 @@ into your GitHub Actions workflow.
 - uses: interrupted-sh/murk-action@v1
   with:
     murk-key: ${{ secrets.MURK_KEY }}
+    trusted-signers: ${{ vars.MURK_TRUSTED_SIGNERS }}
 ```
 
 Workflows that still use `interrupted-inc/murk-action` must switch to `interrupted-sh/murk-action`, because GitHub does not redirect action references after an organization rename.
@@ -25,6 +26,7 @@ steps:
   - uses: interrupted-sh/murk-action@v1
     with:
       murk-key: ${{ secrets.MURK_KEY }}
+      trusted-signers: ${{ vars.MURK_TRUSTED_SIGNERS }}
 
   - run: echo "connected to $DATABASE_URL"
     # DATABASE_URL is available and its value is masked in logs
@@ -35,7 +37,7 @@ steps:
 | Input             | Required | Default  | Description                            |
 |-------------------|----------|----------|----------------------------------------|
 | `murk-key`        | yes      |          | Age secret key (`AGE-SECRET-KEY-1...`), or a whole grant key file; see [Agent grant keys](#agent-grant-keys) |
-| `version`         | no       | `latest` | murk version, 0.10.2 or newer (e.g. `0.13.0`) |
+| `version`         | no       | `latest` | murk version, 0.10.2 or newer (e.g. `0.14.0`). 0.14 and later need `trusted-signers` or a whole grant key file |
 | `vault`           | no       | `.murk`  | Path to vault file                     |
 | `tags`            | no       |          | Space-separated tags to filter secrets |
 | `trusted-signers` | no       |          | Signers trusted to sign the vault, one per line or comma-separated. Required by murk 0.14 and later; see below |
@@ -82,9 +84,10 @@ murk 0.13 and earlier ignore `trusted-signers`, so you can add the input before
 you upgrade.
 
 **Upgrade note:** the whole team must upgrade to murk 0.14 together. murk 0.14
-writes vault format 3.0, which murk 0.13 cannot read. The default
-`version: latest` installs 0.14 after its release, so add `trusted-signers`
-before that, or pin `version: '0.13.0'` until your team upgrades.
+writes vault format 3.0, which murk 0.13 cannot read. murk 0.14 is the current
+release, so the default `version: latest` installs it. Set `trusted-signers` or
+use a whole grant key file as `murk-key`, or pin `version: '0.13.0'` until your
+team upgrades.
 
 ### Agent grant keys
 
@@ -130,7 +133,8 @@ grant the same way before it expires. To end CI's access, run
 - uses: interrupted-sh/murk-action@v1
   with:
     murk-key: ${{ secrets.MURK_KEY }}
-    version: '0.13.0'
+    version: '0.14.0'
+    trusted-signers: ${{ vars.MURK_TRUSTED_SIGNERS }}
 ```
 
 ### Custom vault path
@@ -139,6 +143,7 @@ grant the same way before it expires. To end CI's access, run
 - uses: interrupted-sh/murk-action@v1
   with:
     murk-key: ${{ secrets.MURK_KEY }}
+    trusted-signers: ${{ vars.MURK_TRUSTED_SIGNERS }}
     vault: 'prod.murk'
 ```
 
@@ -148,6 +153,7 @@ grant the same way before it expires. To end CI's access, run
 - uses: interrupted-sh/murk-action@v1
   with:
     murk-key: ${{ secrets.MURK_KEY }}
+    trusted-signers: ${{ vars.MURK_TRUSTED_SIGNERS }}
     tags: 'deploy aws'
 ```
 

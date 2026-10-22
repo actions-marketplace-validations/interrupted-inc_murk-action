@@ -9,7 +9,7 @@ inputs:
     description: 'Age secret key (AGE-SECRET-KEY-1...), or a whole murk agent grant key file (its "# murk-..." comment lines and its AGE-SECRET-KEY-1... line), passed to murk unchanged'
     required: true
   version:
-    description: 'murk version to install, 0.10.2 or newer (e.g. "0.13.0" or "latest"); "latest" installs murk 0.14 once released, which needs trusted-signers'
+    description: 'murk version to install, 0.10.2 or newer (e.g. "0.14.0" or "latest"); murk 0.14 and later need trusted-signers or a whole grant key file as murk-key'
     required: false
     default: 'latest'
   vault:
